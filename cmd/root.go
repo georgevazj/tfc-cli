@@ -17,11 +17,18 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
+
 	"github.com/spf13/cobra"
 
 	"github.com/spf13/viper"
 )
+
+const TFAPI = "https://app.terraform.io/api/v2"
+
+var tfcredsfile string
+var token string
 
 var cfgFile string
 
@@ -53,7 +60,8 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tfc-cli.yaml)")
+	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.tfc-cli.yaml)")
+	rootCmd.PersistentFlags().StringP("organization", "o", "", "Terraform Cloud Organization name")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -62,6 +70,21 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	token = os.Getenv("TFCTOKEN")
+	tfcredsfile = os.Getenv("HOME") + "/.terraform.d/credentials.tfrc.json"
+	if token != "" {
+		log.Println("Using TFCTOKEN from environment")
+	} else if _, err := os.Stat(tfcredsfile); os.IsNotExist(err) {
+		log.Println("Using TFCTOKEN from credentials file")
+		viper.SetConfigFile(tfcredsfile)
+		err := viper.ReadInConfig()
+		if err != nil {
+			log.Println("Error reading credentials file")
+		}
+		token = viper.GetString("token")
+	} else {
+		log.Fatal("TFCTOKEN not set and credentials file not found")
+	}
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
